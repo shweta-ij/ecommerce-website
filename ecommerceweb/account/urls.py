@@ -27,7 +27,9 @@ urlpatterns = [
 
 
 
+#Login/Logout urls
 
+path('my-login', views.my_login, name='my-login')
 
 ]
 
