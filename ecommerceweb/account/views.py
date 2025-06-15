@@ -1,5 +1,6 @@
+from pyexpat.errors import messages
 from django.shortcuts import render, redirect
-from .forms import CreateUserForm
+from .forms import CreateUserForm, LoginForm, UpdateUserForm
 
 from django.contrib.auth.models import User
 
@@ -12,7 +13,11 @@ from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 
 from django.contrib.auth.models import auth
-from django.contrib.auth import authenticate
+from django.contrib.auth import authenticate,login,logout
+
+from django.contrib.auth.decorators import login_required
+
+from django.contrib import messages
 
 # Create your views here.
 
@@ -83,4 +88,115 @@ def email_verification_failed(request):
 
 
 def my_login(request):
-     pass
+
+    form = LoginForm()
+
+    if request.method == 'POST':
+
+        form = LoginForm(request, data=request.POST)
+
+        if form.is_valid():
+
+            username = request.POST.get('username')
+            password = request.POST.get('password')
+
+            user = authenticate(request, username=username, password=password)
+
+            if user is not None:
+
+                auth.login(request, user)
+
+                return redirect("dashboard")
+
+
+    context = {'form':form}
+
+    return render(request, 'account/my-login.html', context=context)
+
+
+
+#Logout 
+
+def user_logout(request):
+
+    try:
+
+        for key in list(request.session.keys()):
+
+            if key == 'session_key':
+
+                continue
+
+            else:
+
+                del request.session[key]
+
+
+    except KeyError:
+
+        pass
+
+
+    messages.success(request, "Logout success")
+
+    return redirect("ecommercesite")
+
+
+
+
+
+@login_required(login_url='my-login')
+def dashboard(request):
+
+
+    return render(request, 'account/dashboard.html')
+
+
+
+
+@login_required(login_url='my-login')
+def profile_management(request):    
+
+    # Updating our user's username and email
+
+    user_form = UpdateUserForm(instance=request.user)
+
+    if request.method == 'POST':
+
+        user_form = UpdateUserForm(request.POST, instance=request.user)
+
+        if user_form.is_valid():
+
+            user_form.save()
+
+            messages.info(request, "Update success!")
+
+            return redirect('dashboard')
+
+   
+
+    context = {'user_form':user_form}
+
+    return render(request, 'account/profile-management.html', context=context)
+
+
+#Delete Account
+
+@login_required(login_url='my-login')
+def delete_account(request):
+
+    user = User.objects.get(id=request.user.id)
+
+    if request.method == 'POST':
+
+        user.delete()
+
+
+        messages.error(request, "Account deleted")
+
+
+        return redirect('ecommercesite')
+
+
+    return render(request, 'account/delete-account.html')
+
